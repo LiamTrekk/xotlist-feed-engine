@@ -79,6 +79,31 @@ breaks it.
 **Work happens on cron, not on request.** Ingest, artwork resolution and provider lookups
 all run ahead of time so a page load is a database read.
 
+## Tests
+
+Pure normalisation and canonicalisation invariants are covered by executable tests;
+WordPress-bound integration paths are intentionally not mocked.
+
+```sh
+php tests/test_pure_functions.php
+```
+
+What is verified:
+
+| Property | Why it matters |
+|---|---|
+| Cache-key fingerprints collapse featured-artist variants — `feat.`, `ft.`, `featuring`, `&`, `+`, `,` | Without it every collaboration misses cache and burns an API call |
+| Genuinely different tracks and artists do **not** collide | A key that collapsed everything would be worse than none |
+| Fingerprints are deterministic across repeated calls | Cache lookups must be stable between cron runs |
+| Canonical URLs strip `utm_*`, `fbclid`, `gclid`, `mc_cid`, trailing slashes and fragments | Two publications syndicating one article must not ingest twice |
+| Meaningful query parameters survive canonicalisation | Over-stripping would merge genuinely different pages |
+| Normalisation folds accents and is idempotent | Fuzzy artist matching depends on it |
+
+The suite has exactly one WordPress dependency — `remove_query_arg()` — reimplemented to its
+documented behaviour and declared explicitly at the top of the test file. Nothing else is
+shimmed. The database, post, transient and hook layers are deliberately left untested here:
+mocking them would demonstrate that the mocks match the calls, not that the code is correct.
+
 ## Running this
 
 These are extracts from a live theme. They call into helpers that are not in this
